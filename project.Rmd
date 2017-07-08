@@ -1,0 +1,81 @@
+---
+title: "Machine learning project"
+author: "JMSG"
+date: "9 de julio de 2017"
+output: html_document
+---
+##loading the data
+```{r}
+training_data <- read.csv("pml-training.csv")
+test_data <- read.csv("pml-testing.csv")
+```
+
+##Dividing the training data in two parts (60-40%)
+```{r}
+library(caret)
+train_data <- createDataPartition(y=training_data$classe,p=.60,list=F)
+training_set <- training_data[train_data,]
+testing_set <- training_data[-train_data,]
+```
+
+#Cleaning the data
+##low variance
+```{r}
+training_set_znv <- nearZeroVar(training_set, saveMetrics=TRUE)
+training_set <- training_set[!training_set_znv$nzv]
+```
+
+##missing values (95% threshold)
+```{r}
+NA_perc <- apply(training_set, 2, function(x) sum(is.na(x)))/nrow(training_set)
+training_set <- training_set[!(NA_perc>0.95)]
+```
+
+##not useful variables (identifier, timestamp, names, etc.)
+```{r}
+training_set<- training_set[, -(1:6)]
+```
+
+##the variables that will be used are the following
+```{r}
+names(training_set)
+```
+
+#Building a Random Forest and Decision Tree models
+##RF
+```{r}
+library(randomForest)
+modelRF <- randomForest(training_set$classe ~ .,   data=training_set, do.trace=F)
+```
+
+##DT
+```{r}
+library("rpart")
+modelDT <- rpart(classe ~ ., data=training_set, method="class")
+```
+
+##cleaning the test set
+```{r}
+testing_set_znv <- nearZeroVar(testing_set, saveMetrics=TRUE)
+testing_set <- testing_set[!testing_set_znv$nzv]
+NA_perc <- apply(testing_set, 2, function(x) sum(is.na(x)))/nrow(testing_set)
+testing_set <- testing_set[!(NA_perc>0.95)]
+testing_set<- testing_set[, -(1:6)]
+```
+
+##testing the accuracy of the models
+```{r}
+predictionsRF <- predict(modelRF, testing_set, type = "class")
+confusionMatrix(predictionsRF , testing_set$classe)
+predictionsDT <- predict(modelDT, testing_set, type = "class")
+confusionMatrix(predictionsDT , testing_set$classe)
+```
+
+#Discussion
+####A set of 19622 observations containing 160 variables were used in order to build a prediction model.
+####The 19622 observations were splitted into training set (60%) and cross-validation set (40%).
+####The data was cleaned by deleting non useful variables of variables with low variance as well as variables having more than 5% of NA.
+####The final data set was composed of 11776 observations with 53 variables.
+####Random Forest (RF) and Decision Tree (DT) models were developed and applied to the testing data set. 
+####As expected the RF model has a better accuracy (99% vs. 72%). 
+####The sensitivity was in between 98,9%-99,7% and the specificity was over 99,7% for all classes.
